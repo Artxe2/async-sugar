@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<title>Test</title>
+		<script src="async-sugar.js"></script>
+	</head>
+	<body>
+		<script>
+const sleep = (ms) => new Promise(resolve => setTimeout(() => resolve(), ms))
+const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms))
+const errorEcho = (value) => new Promise((_, reject) => reject(value))
+;(async () => {
+	let time = 0
+	setInterval(() => {
+		time += 10
+	}, 10);
+	const printThen = value => console.log("then:", time + "ms", value)
+	const printCatch = error => console.log("catch:", time + "ms", error)
+
+	console.log("\n inProgressTest")
+	const inProgressTest = builder(v => sleepEcho(v, 100))
+	inProgressTest.promise("1st")
+		.then(printThen)
+	inProgressTest.promise("2nd")
+		.catch(printCatch)
+	await sleep(500)
+	time = 0
+
+	console.log("\n debounceTest")
+	const debounceTest = builder(v => sleepEcho(v, 100))
+		.debounce(100)
+	debounceTest.promise("3rd")
+		.catch(printCatch)
+	debounceTest.promise("4th")
+		.then(printThen)
+	await sleep(500)
+	time = 0
+	
+	console.log("\n retryTest")
+	const retryTest = builder((() => {
+		let count = 0
+		return v => (++count % 4 ? errorEcho : sleepEcho)(v, 100)
+	})())
+	await retryTest.promise("5th").catch(printCatch)
+	await retryTest.promise("6th").catch(printCatch)
+	await retryTest.promise("7th").catch(printCatch)
+	await retryTest.promise("8th").then(printThen)
+	await sleep(500)
+	time = 0
+
+	console.log("\n throttleTest")
+	const throttleTest = builder(v => v)
+		.throttle(2, 100)
+	throttleTest.promise("9th").then(printThen)
+	await sleep(0)
+	throttleTest.promise("10th").then(printThen)
+	await sleep(0)
+	throttleTest.promise("11th").catch(printCatch)
+	await sleep(500)
+	time = 0
+
+	console.log("\n cacheTest")
+	const cacheTest = builder(v => v)
+		.cache(100)
+	cacheTest.promise("12th").then(printThen)
+	await sleep(40)
+	cacheTest.promise("13th").then(printThen)
+	await sleep(40)
+	cacheTest.promise("14th").then(printThen)
+	await sleep(40)
+	cacheTest.promise("15th").then(printThen)
+	await sleep(500)
+	time = 0
+
+	console.log("\n allow102Test")
+	const allow102Test = builder(v => sleepEcho(v, 100))
+		.allow(102)
+	allow102Test.promise("16th").then(printThen)
+	allow102Test.promise("17th").then(printThen)
+	await sleep(500)
+	time = 0
+
+	console.log("\n allow409Test")
+	const allow409Test = builder(v => sleepEcho(v, 100))
+		.debounce(100)
+		.allow(409)
+	allow409Test.promise("18th").then(printThen)
+	allow409Test.promise("19th").then(printThen)
+	await sleep(500)
+	time = 0
+
+	console.log("\n allow429Test")
+	const allow429Test = builder(v => v)
+		.throttle(1, 100)
+		.allow(429)
+	allow429Test.promise("20th").then(printThen)
+	await sleep(0)
+	allow429Test.promise("21st").then(printThen)
+})()
+		</script>
+	</body>
+</html>

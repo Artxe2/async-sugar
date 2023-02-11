@@ -1,0 +1,18 @@
+{
+  "author": "artxe2",
+  "bugs": {
+    "url": "https://github.com/Artxe2/async-sugar/issues"
+  },
+  "description": "Syntax sugar for asynchronous programming, very easy",
+  "homepage": "https://github.com/Artxe2/async-sugar#readme",
+  "keywords": ["async sugar", "async-sugar", "async", "promise", "dag"],
+  "license": "MIT",
+  "main": "index.min.js",
+  "name": "async-sugar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Artxe2/async-sugar"
+  },
+  "type": "module",
+  "version": "0.3.1"
+}

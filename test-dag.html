@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<title>Test</title>
+		<script src="async-sugar.js"></script>
+	</head>
+	<body>
+		<script>
+const sleep = (ms) => new Promise(resolve => setTimeout(() => resolve(), ms))
+const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms))
+;(async () => {
+	let time = 0
+	setInterval(() => {
+		time += 10
+	}, 10);
+
+	const a = builder(v => sleepEcho(v, 100))
+	const b = builder(v => sleepEcho(v, 200))
+	const c = builder((a, b) => sleepEcho(a + b, 100))
+	const d = builder(v => sleepEcho(v, 400))
+	const e = builder((c, d) => sleepEcho(c + d, 100))
+	const abcdeDag = dag()
+		.add(a, "a")
+		.add(b, "b")
+		.add(c, a, b)
+		.add(d, "d")
+		.add(e, c, d)
+
+	const x = builder(v => sleepEcho(v, 100))
+	const y = builder(v => sleepEcho(v, 200))
+	const z = builder((x, y) => sleepEcho(x + y, 200))
+	const xyzDag = dag()
+		.add(x, "x")
+		.add(y, "y")
+		.add(z, x, y)
+	
+	const abcdexyz = (abcde, xyz) => sleepEcho(abcde[abcde.length - 1] + xyz[xyz.length - 1], 200)
+	const abcdexyzDag = dag()
+		.add(abcdeDag)
+		.add(xyzDag)
+		.add(abcdexyz, abcdeDag, xyzDag)
+		
+	const dagApi = builder(abcdexyzDag).debounce(500)
+	
+	dagApi.promise().catch(err => console.log(err, time)) // 409 Error
+	dagApi.promise().then(res => console.log(res, time)) // log when 1200
+	dagApi.debounce(0)
+	dagApi.promise().then(res => console.log(res, time)) // log when 700
+
+	const now = builder(() => sleepEcho(Date.now(), 100))
+	const nowDag = dag().add(now)
+	console.log(await nowDag.promise(), time) // log when 100
+	console.log(await nowDag.promise(), time) // log when 200
+	console.log(await nowDag.promise(), time) // log when 300
+	console.log(await nowDag.promise(), time) // log when 400
+})()
+		</script>
+	</body>
+</html>
