@@ -29,7 +29,7 @@ declare module "async-sugar" {
 
 ### Builder
 ```javascript
-import { builder } from 'async-sugar'
+import { builder } from "async-sugar"
 
 const sleep = (ms) => new Promise(resolve => setTimeout(() => resolve(), ms))
 const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms))
@@ -47,7 +47,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	inProgressTest.promise("1st")
 		.then(printThen)
 	inProgressTest.promise("2nd")
-		.catch(printCatch)
+		.catch(printCatch) // 102 Error
 	await sleep(500)
 	time = 0
 
@@ -55,7 +55,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	const debounceTest = builder(v => sleepEcho(v, 100))
 		.debounce(100)
 	debounceTest.promise("3rd")
-		.catch(printCatch)
+		.catch(printCatch) // 409 Error
 	debounceTest.promise("4th")
 		.then(printThen)
 	await sleep(500)
@@ -63,13 +63,12 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	
 	console.log("\n retryTest")
 	const retryTest = builder((() => {
-		let count = 0
-		return v => (++count % 4 ? errorEcho : sleepEcho)(v, 100)
+		let count = 4
+		return () => (++count % 4 ? errorEcho : sleepEcho)(count + "th", 100)
 	})())
-	await retryTest.promise("5th").catch(printCatch)
-	await retryTest.promise("6th").catch(printCatch)
-	await retryTest.promise("7th").catch(printCatch)
-	await retryTest.promise("8th").then(printThen)
+		.retries(3)
+	await retryTest.promise()
+		.then(printThen) // success after 3 retries
 	await sleep(500)
 	time = 0
 
@@ -80,7 +79,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	await sleep(0)
 	throttleTest.promise("10th").then(printThen)
 	await sleep(0)
-	throttleTest.promise("11th").catch(printCatch)
+	throttleTest.promise("11th").catch(printCatch) // 429 Error
 	await sleep(500)
 	time = 0
 
@@ -127,44 +126,41 @@ console.log
 ```javascript
  inProgressTest
 then: 100ms 1st
-catch: 100ms {code: 102, message: 'Async request already in progress', value: '1st'}
+catch: 100ms {code: 102, message: "Async request already in progress", value: "1st"}
 
  debounceTest
-then: 190ms 4th
-catch: 190ms {code: 409, message: 'Async request be debounced', value: '4th'}
+then: 200ms 4th
+catch: 200ms {code: 409, message: "Async request be debounced", value: "4th"}
 
  retryTest
-catch: 0ms 5th
-catch: 0ms 6th
-catch: 0ms 7th
 then: 100ms 8th
 
  throttleTest
 then: 0ms 9th
 then: 0ms 10th
-catch: 10ms {code: 429, message: 'Too many requests', value: '10th'}
+catch: 0ms {code: 429, message: "Too many requests", value: "10th"}
 
  cacheTest
 then: 0ms 12th
 then: 40ms 12th
-then: 80ms 12th
-then: 120ms 15th
+then: 90ms 12th
+then: 140ms 15th
 
  allow102Test
 then: 100ms 16th
 then: 100ms 16th
 
  allow409Test
-then: 210ms 19th
-then: 210ms 19th
+then: 200ms 19th
+then: 200ms 19th
 
  allow429Test
 then: 0ms 20th
-then: 0ms 20th
+then: 10ms 20th
 ```
 ### Dag
 ```javascript
-import { builder, dag } from 'async-sugar'
+import { builder, dag } from "async-sugar"
 
 const sleep = (ms) => new Promise(resolve => setTimeout(() => resolve(), ms))
 const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms))
@@ -180,25 +176,25 @@ const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve
 	const d = builder(v => sleepEcho(v, 400))
 	const e = builder((c, d) => sleepEcho(c + d, 100))
 	const abcdeDag = dag()
-		.add(a, "a")
-		.add(b, "b")
-		.add(c, a, b)
-		.add(d, "d")
-		.add(e, c, d)
+		.add(a, "a") // a
+		.add(b, "b") // b
+		.add(c, a, b) // a + b = ab
+		.add(d, "d") // d
+		.add(e, c, d) // ab + d = abd
 
 	const x = builder(v => sleepEcho(v, 100))
 	const y = builder(v => sleepEcho(v, 200))
 	const z = builder((x, y) => sleepEcho(x + y, 200))
 	const xyzDag = dag()
-		.add(x, "x")
-		.add(y, "y")
-		.add(z, x, y)
+		.add(x, "x") // x
+		.add(y, "y") // y
+		.add(z, x, y) // x + y = xy
 	
-	const abcdexyz = (abcde, xyz) => sleepEcho(abcde[abcde.length - 1] + xyz[xyz.length - 1], 200)
+	const abcdexyz = (abcde, xyz) => sleepEcho(abcde + xyz, 200)
 	const abcdexyzDag = dag()
-		.add(abcdeDag)
-		.add(xyzDag)
-		.add(abcdexyz, abcdeDag, xyzDag)
+		.add(abcdeDag) // abcdeDag.promise()
+		.add(xyzDag) // xyzDag.promise()
+		.add(abcdexyz, abcdeDag, xyzDag) // abd + xy = abdxy
 		
 	const dagApi = builder(abcdexyzDag).debounce(500)
 	
@@ -217,12 +213,16 @@ const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve
 ```
 console.log
 ```javascript
-[1675319419565] 100
-[1675319419677] 200
-[1675319419789] 310
-[1675319419907] 410
-(3) [(6) ['z', 'a', 'b', 'ab', 'd', 'abd'], (3) ['x', 'y', 'xy'], 'abdxy'] 700
-(3) [(6) ['z', 'a', 'b', 'ab', 'd', 'abd'], (3) ['x', 'y', 'xy'], 'abdxy'] 1210
-{code: 409, message: 'Async request be debounced', value: Array(3)} 1210
+1676258762947 100
+1676258763049 200
+1676258763154 300
+1676258763258 410
+abdxy 700
+abdxy 1200
+{
+	code: 409,
+	message: "Async request be debounced",
+	value: "abdxy"
+} 1200
 ```
 I hope you find this library useful! Let me know if you have any questions or suggestions.

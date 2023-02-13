@@ -4,9 +4,9 @@ const builder = getPromise => {
 	let currentPromise/* Promise */
 	let inProgress/* Promise */
 
-	let allow429Error
-	let allow409Error
-	let allow102Error
+	let allow429Error/* boolean */
+	let allow409Error/* boolean */
+	let allow102Error/* boolean */
 	const allow = (...codes) => {
 		allow429Error = codes.includes(429)
 		allow409Error = codes.includes(409)
@@ -29,7 +29,7 @@ const builder = getPromise => {
 		return utils
 	}
 	let throttleCount = 0
-	let throttlePromise /* Promise */
+	let throttlePromise/* Promise */
 	const throttleImpl = async args => {
 		if (!throttleLimit || throttleCount < throttleLimit) {
 			if (throttleLimit) {
@@ -154,8 +154,8 @@ const dag = () => {
 		promise
 			.then(value => {
 				tasks.set(dependencies, value)
-				if (++count[0] === tasks.size) {
-					resolve(Promise.all([...tasks.values()]))
+				if (!--count[0]) {
+					resolve([...tasks.values()].pop())
 				}
 				const queue = dependents.get(getPromise)
 				if (queue) {
@@ -186,7 +186,7 @@ const dag = () => {
 				}
 			}
 		}
-		const count = [ 0 ]
+		const count = [ tasks.size ]
 		for (const [dependencies, getPromise] of tasks) {
 			if (dependencies.every(p => !isFunction(p))) {
 				next(resolve, reject, tasks, dependents, count, dependencies, getPromise)

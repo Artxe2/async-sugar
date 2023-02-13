@@ -22,7 +22,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	inProgressTest.promise("1st")
 		.then(printThen)
 	inProgressTest.promise("2nd")
-		.catch(printCatch)
+		.catch(printCatch) // 102 Error
 	await sleep(500)
 	time = 0
 
@@ -30,7 +30,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	const debounceTest = builder(v => sleepEcho(v, 100))
 		.debounce(100)
 	debounceTest.promise("3rd")
-		.catch(printCatch)
+		.catch(printCatch) // 409 Error
 	debounceTest.promise("4th")
 		.then(printThen)
 	await sleep(500)
@@ -38,13 +38,12 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	
 	console.log("\n retryTest")
 	const retryTest = builder((() => {
-		let count = 0
-		return v => (++count % 4 ? errorEcho : sleepEcho)(v, 100)
+		let count = 4
+		return () => (++count % 4 ? errorEcho : sleepEcho)(count + "th", 100)
 	})())
-	await retryTest.promise("5th").catch(printCatch)
-	await retryTest.promise("6th").catch(printCatch)
-	await retryTest.promise("7th").catch(printCatch)
-	await retryTest.promise("8th").then(printThen)
+		.retries(3)
+	await retryTest.promise()
+		.then(printThen) // success after 3 retries
 	await sleep(500)
 	time = 0
 
@@ -55,7 +54,7 @@ const errorEcho = (value) => new Promise((_, reject) => reject(value))
 	await sleep(0)
 	throttleTest.promise("10th").then(printThen)
 	await sleep(0)
-	throttleTest.promise("11th").catch(printCatch)
+	throttleTest.promise("11th").catch(printCatch) // 429 Error
 	await sleep(500)
 	time = 0
 

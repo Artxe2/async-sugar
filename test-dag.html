@@ -20,25 +20,25 @@ const sleepEcho = (value, ms) => new Promise(resolve => setTimeout(() => resolve
 	const d = builder(v => sleepEcho(v, 400))
 	const e = builder((c, d) => sleepEcho(c + d, 100))
 	const abcdeDag = dag()
-		.add(a, "a")
-		.add(b, "b")
-		.add(c, a, b)
-		.add(d, "d")
-		.add(e, c, d)
+		.add(a, "a") // a
+		.add(b, "b") // b
+		.add(c, a, b) // a + b = ab
+		.add(d, "d") // d
+		.add(e, c, d) // ab + d = abd
 
 	const x = builder(v => sleepEcho(v, 100))
 	const y = builder(v => sleepEcho(v, 200))
 	const z = builder((x, y) => sleepEcho(x + y, 200))
 	const xyzDag = dag()
-		.add(x, "x")
-		.add(y, "y")
-		.add(z, x, y)
+		.add(x, "x") // x
+		.add(y, "y") // y
+		.add(z, x, y) // x + y = xy
 	
-	const abcdexyz = (abcde, xyz) => sleepEcho(abcde[abcde.length - 1] + xyz[xyz.length - 1], 200)
+	const abcdexyz = (abcde, xyz) => sleepEcho(abcde + xyz, 200)
 	const abcdexyzDag = dag()
-		.add(abcdeDag)
-		.add(xyzDag)
-		.add(abcdexyz, abcdeDag, xyzDag)
+		.add(abcdeDag) // abcdeDag.promise()
+		.add(xyzDag) // xyzDag.promise()
+		.add(abcdexyz, abcdeDag, xyzDag) // abd + xy = abdxy
 		
 	const dagApi = builder(abcdexyzDag).debounce(500)
 	
