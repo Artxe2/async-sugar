@@ -144,56 +144,57 @@ const builder = getPromise => {
 	return utils
 }
 
+const _isFunction = p => typeof p === "function"
+const _next = async (resolve, reject, tasks, dependents, count, dependencies, getPromise) => {
+	const promise = dependencies.length
+		? getPromise(...(await Promise.all(dependencies)))
+		: getPromise()
+	promise
+		.then(value => {
+			tasks.set(dependencies, value)
+			if (!--count[0]) {
+				resolve([...tasks.values()].pop())
+			}
+			const queue = dependents.get(getPromise)
+			if (queue) {
+				for (const p of queue) {
+					p[p.indexOf(getPromise)] = value
+					if (p.every(p => !_isFunction(p))) {
+						_next(resolve, reject, tasks, dependents, count, p, tasks.get(p))
+							.catch(reason => reject(reason))
+					}
+				}
+			}
+		})
+		.catch(reason => reject(reason))
+}
+const _promise = (plans) => new Promise((resolve, reject) => {
+	const tasks = new Map()
+	const dependents = new Map()
+	for (const [dependencies, getPromise] of plans) {
+		const clone = [...dependencies]
+		tasks.set(clone, getPromise)
+		for (const p of clone) {
+			if (_isFunction(p)) {
+				if (dependents.has(p)) {
+					dependents.get(p).push(clone)
+				} else {
+					dependents.set(p, [ clone ])
+				}
+			}
+		}
+	}
+	const count = [ tasks.size ]
+	for (const [dependencies, getPromise] of tasks) {
+		if (dependencies.every(p => !_isFunction(p))) {
+			_next(resolve, reject, tasks, dependents, count, dependencies, getPromise)
+				.catch(reason => reject(reason))
+		}
+	}
+})
 const dag = () => {
 	const plans = new Map()
-	const isFunction = p => typeof p === "function"
-	const next = async (resolve, reject, tasks, dependents, count, dependencies, getPromise) => {
-		const promise = dependencies.length
-			? getPromise(...(await Promise.all(dependencies)))
-			: getPromise()
-		promise
-			.then(value => {
-				tasks.set(dependencies, value)
-				if (!--count[0]) {
-					resolve([...tasks.values()].pop())
-				}
-				const queue = dependents.get(getPromise)
-				if (queue) {
-					for (const p of queue) {
-						p[p.indexOf(getPromise)] = value
-						if (p.every(p => !isFunction(p))) {
-							next(resolve, reject, tasks, dependents, count, p, tasks.get(p))
-								.catch(reason => reject(reason))
-						}
-					}
-				}
-			})
-			.catch(reason => reject(reason))
-	}
-	const promise = () => new Promise((resolve, reject) => {
-		const tasks = new Map()
-		const dependents = new Map()
-		for (const [dependencies, getPromise] of plans) {
-			const clone = [...dependencies]
-			tasks.set(clone, getPromise)
-			for (const p of clone) {
-				if (isFunction(p)) {
-					if (dependents.has(p)) {
-						dependents.get(p).push(clone)
-					} else {
-						dependents.set(p, [ clone ])
-					}
-				}
-			}
-		}
-		const count = [ tasks.size ]
-		for (const [dependencies, getPromise] of tasks) {
-			if (dependencies.every(p => !isFunction(p))) {
-				next(resolve, reject, tasks, dependents, count, dependencies, getPromise)
-					.catch(reason => reject(reason))
-			}
-		}
-	})
+	const promise = () => _promise(plans)
 	const add = (getPromise, ...dependencies) => {
 		plans.set(dependencies.map(v => v.promise || v), getPromise.promise || getPromise)
 		return utils
@@ -202,4 +203,105 @@ const dag = () => {
 	return utils
 }
 
-export { builder, dag }
+const _encode = (array, value, prefix) => {
+	if (value && typeof value === "object") {
+		if (value instanceof Array) {
+			for (let k in value) {
+				_encode(array, value[k], prefix + "%5B" + encodeURIComponent(k) + "%5D")
+			}
+		} else {
+			for (let k in value) {
+				_encode(array, value[k], prefix + "." + encodeURIComponent(k))
+			}
+		}
+	} else {
+		array.push(prefix + "=" + encodeURIComponent(value))
+	}
+}
+const _toQuery = (args) => {
+	if (!args) {
+		return ""
+	}
+	const array = [];
+	for (let k in args) {
+		_encode(array, args[k], encodeURIComponent(k))
+	}
+	return "?" + array.join("&");
+}
+const request = (input) => {
+	let _mode/* string */
+	let _cache/* string */
+	let _credentials/* string */
+	let _headers = { "Content-Type": "application/json; charset=UTF-8" }
+	let _redirect/* string */
+	let _referrerPolicy/* string */
+	let _timeout/* number */
+
+	const mode = (value) => {
+		_mode = value
+		return utils
+	}
+	const cache = (value) => {
+		_cache = value
+		return utils
+	}
+	const credentials = (value) => {
+		_credentials = value
+		return utils
+	}
+	const headers = (headers) => {
+		_headers = { ..._headers, ...headers }
+		return utils
+	}
+	const redirect = (value) => {
+		_redirect = value
+		return utils
+	}
+	const referrerPolicy = (value) => {
+		_referrerPolicy = value
+		return utils
+	}
+	const timeout = (ms) => {
+		_timeout = ms
+		return utils
+	}
+	const get = args => fetch(input + _toQuery(args), init())
+	const method = (method, args) => fetch(input, init(method, args))
+	const init = (method, body) => {
+		if (body && !(body instanceof FormData)) {
+			body = JSON.stringify(body)
+		}
+		let signal
+		if (_timeout) {
+			const controller = new AbortController()
+			setTimeout(() => controller.abort(), _timeout)
+			signal = controller.signal
+		}
+		return {
+			method,
+			mode: _mode,
+			cache: _cache,
+			credentials: _credentials,
+			headers: _headers,
+			redirect: _redirect,
+			referrerPolicy: _referrerPolicy,
+			signal,
+			body
+		}
+	}
+
+	const utils = {
+		mode,
+		cache,
+		credentials,
+		headers,
+		redirect,
+		referrerPolicy,
+		timeout,
+		get,
+		method
+	}
+	return utils
+}
+
+export { builder, dag, request }

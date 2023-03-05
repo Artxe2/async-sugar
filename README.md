@@ -8,20 +8,32 @@ npm i -D async-sugar
 ```typescript
 type GetPromise = ((...args: any[]) => Promise<any>) | { promise: (...args: any[]) => Promise<any> }
 type BuilderUtils = {
-	promise(...args: any[]): Promise<any>,
-	allow(...codes: number[]): BuilderUtils,
-	cache(ms: number): BuilderUtils,
-	debounce(ms: number): BuilderUtils,
-	retries(n: number): BuilderUtils,
+	promise(...args: any[]): Promise<any>
+	allow(...codes: number[]): BuilderUtils
+	cache(ms: number): BuilderUtils
+	debounce(ms: number): BuilderUtils
+	retries(n: number): BuilderUtils
 	throttle(n: number, ms: number): BuilderUtils
 }
 type DagUtils = {
 	promise(): Promise<any>
 	add(builder: GetPromise, ...dependencies: any[]): DagUtils
 }
+type RequestUtils = {
+	get(args?: { [ k: string ]: any }): Promise<Response>
+	method(method: string, args?: JSON): Promise<Response>
+	mode(value?): RequestUtils
+	cache(value?): RequestUtils
+	credentials(value?): RequestUtils
+	headers(headers?: JSON): RequestUtils
+	redirect(value?): RequestUtils
+	referrerPolicy(value?): RequestUtils
+	timeout(ms?): RequestUtils
+}
 declare module "async-sugar" {
 	const builder: (getPromise: GetPromise) => BuilderUtils
 	const dag: () => DagUtils
+	const request: (input: string) => RequestUtils
 }
 ```
 
@@ -224,5 +236,36 @@ abdxy 1200
 	message: "Async request be debounced",
 	value: "abdxy"
 } 1200
+```
+### Request
+```javascript
+import { request } from "async-sugar"
+
+;(async () => {
+	let time = 0
+	setInterval(() => {
+		time += 10
+	}, 10);
+
+	let response
+	/* args to query: ?a=1&b%5B0%5D=1&b%5B1%5D=2&b%5B2%5D=3&c=6&d.e%5B0%5D=a&d.e%5B1%5D=b&d.e%5B2%5D=c */
+	const get = request('https://jsonplaceholder.typicode.com/posts')
+	response = await get.get({a:1, b:[1,2,3], c:6, d: { e: ["a", "b", "c"]}})
+		.then(response => response.json())
+		.then(data => console.log("get:", time + "ms", data))
+	/* args to body */
+	const post = request('https://jsonplaceholder.typicode.com/posts?_delay=1500')
+	await post.timeout(1000).method("POST", {a:1, b:[1,2,3], c:6, d: { e: ["a", "b", "c"]}})
+		.catch(error => console.log("catch:", time + "ms", error)) // abort after 1s
+	await post.timeout(0).method("POST", {a:1, b:[1,2,3], c:6, d: { e: ["a", "b", "c"]}})
+		.then(response => response.json())
+		.then(data => console.log("get:", time + "ms", data))
+})()
+```
+console.log
+```javascript
+get: 490ms (100) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+catch: 1490ms DOMException: The user aborted a request.
+get: 3900ms {a: 1, b: Array(3), c: 6, d: {…}, id: 101}
 ```
 I hope you find this library useful! Let me know if you have any questions or suggestions.
