@@ -168,7 +168,7 @@ const _next = async (resolve, reject, tasks, dependents, count, dependencies, ge
 		})
 		.catch(reason => reject(reason))
 }
-const _promise = (plans) => new Promise((resolve, reject) => {
+const _promise = plans => new Promise((resolve, reject) => {
 	const tasks = new Map()
 	const dependents = new Map()
 	for (const [dependencies, getPromise] of plans) {
@@ -218,7 +218,7 @@ const _encode = (array, value, prefix) => {
 		array.push(prefix + "=" + encodeURIComponent(value))
 	}
 }
-const _toQuery = (args) => {
+const _toQuery = args => {
 	if (!args) {
 		return ""
 	}
@@ -228,7 +228,7 @@ const _toQuery = (args) => {
 	}
 	return "?" + array.join("&");
 }
-const request = (input) => {
+const request = input => {
 	let _mode/* string */
 	let _cache/* string */
 	let _credentials/* string */
@@ -237,31 +237,31 @@ const request = (input) => {
 	let _referrerPolicy/* string */
 	let _timeout/* number */
 
-	const mode = (value) => {
+	const mode = value => {
 		_mode = value
 		return utils
 	}
-	const cache = (value) => {
+	const cache = value => {
 		_cache = value
 		return utils
 	}
-	const credentials = (value) => {
+	const credentials = value => {
 		_credentials = value
 		return utils
 	}
-	const headers = (headers) => {
+	const headers = headers => {
 		_headers = { ..._headers, ...headers }
 		return utils
 	}
-	const redirect = (value) => {
+	const redirect = value => {
 		_redirect = value
 		return utils
 	}
-	const referrerPolicy = (value) => {
+	const referrerPolicy = value => {
 		_referrerPolicy = value
 		return utils
 	}
-	const timeout = (ms) => {
+	const timeout = ms => {
 		_timeout = ms
 		return utils
 	}
