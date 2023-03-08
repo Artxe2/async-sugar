@@ -228,11 +228,13 @@ const _toQuery = args => {
 	}
 	return "?" + array.join("&");
 }
-const request = input => {
+const request = (input, initHeaders = {
+	"Content-Type": "application/json; charset=UTF-8"
+}) => {
 	let _mode/* string */
 	let _cache/* string */
 	let _credentials/* string */
-	let _headers = { "Content-Type": "application/json; charset=UTF-8" }
+	let _headers/* JSON */
 	let _redirect/* string */
 	let _referrerPolicy/* string */
 	let _timeout/* number */
@@ -250,7 +252,7 @@ const request = input => {
 		return utils
 	}
 	const headers = headers => {
-		_headers = { ..._headers, ...headers }
+		_headers = { ...initHeaders, ...headers }
 		return utils
 	}
 	const redirect = value => {

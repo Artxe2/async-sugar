@@ -25,5 +25,5 @@ type RequestUtils = {
 declare module "async-sugar" {
 	const builder: (getPromise: GetPromise) => BuilderUtils
 	const dag: () => DagUtils
-	const request: (input: string) => RequestUtils
+	const request: (input: string, initHeaders?: JSON) => RequestUtils
 }
