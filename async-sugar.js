@@ -234,7 +234,7 @@ const request = (input, initHeaders = {
 	let _mode/* string */
 	let _cache/* string */
 	let _credentials/* string */
-	let _headers/* JSON */
+	let _headers = initHeaders
 	let _redirect/* string */
 	let _referrerPolicy/* string */
 	let _timeout/* number */
